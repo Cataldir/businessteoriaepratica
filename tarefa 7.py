@@ -8,8 +8,6 @@ from rpy2.robjects.packages import importr
 from scipy.stats import ttest_ind as htest
 from scipy.stats import ttest_1samp as atest
 
-np.random.seed(100)
-
 # Usaremos alguns pacotes do R nesta aula:
 
 base = importr('base') # pacote base do R
@@ -39,8 +37,6 @@ fitdist = importr('fitdistrplus') # pacote fitdistrplus do R
 # Não precisamos arrumar o DF neste caso
 inputs = pd.read_excel("Análise de Prospecto.xlsx", sheet_name="Resources", delimiter=",")
 process = pd.read_excel("Análise de Prospecto.xlsx", sheet_name="Process", delimiter=",")
-
-shape_param = 5
 
 def generate_data(df, shape_param=5, dist=stats.rweibull):
 	data = pd.DataFrame()
@@ -84,3 +80,29 @@ np.max(process['Instances completed']) - process['Instances completed'][0]
 	outliers[outliers.columns[5]].value_counts()[True] < np.max(process['Instances completed']) - process['Instances completed'][5]
 """
 
+def check_errors(df, level, task_index=0, size=300):
+	error_vec = []
+	for i in range(0, size):
+		np.random.seed(i)
+		prc_data = generate_data(df)
+		outliers = check_outlier(prc_data, level)
+		try:
+			errors = int(outliers[outliers.columns[task_index]].value_counts()[True])
+		except KeyError:
+			errors = 0
+		error_vec.append(errors)
+	comparative = int(np.max(process['Instances completed']) - process['Instances completed'][task_index])
+	tstat, pval = atest(error_vec, comparative)
+	if pval < 0.01:
+		h1 = 'Rejeita H0: Médias Diferentes'
+	else:
+		h1 = 'Aceita H0: Médias Iguais'
+	return {'Estatística do teste: ': tstat, 
+			'Média Erros': np.mean(error_vec),
+			'Média var2': comparative,			
+			'P-Valor: ': pval, 
+			'Resultado: ': h1}
+
+check_errors(process, 2)
+check_errors(process, 3)
+check_errors(process, 4)
